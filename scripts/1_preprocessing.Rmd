@@ -347,11 +347,11 @@ saveRDS(
   here::here('data/processed',
              'tagged_corpus_with_metadata.RDS'))
 
-data.table::fwrite(
-  tagged_corpus,
-  here::here('data/processed',
-             'tagged_corpus_with_metadata.txt'),
-  sep = '\t')
+#data.table::fwrite(
+  #tagged_corpus,
+  #here::here('data/processed',
+             #'tagged_corpus_with_metadata.txt'),
+  #sep = '\t')
 
 ```
 

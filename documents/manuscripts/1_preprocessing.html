@@ -2191,11 +2191,11 @@ saveRDS(
   here::here(&#39;data/processed&#39;,
              &#39;tagged_corpus_with_metadata.RDS&#39;))
 
-data.table::fwrite(
-  tagged_corpus,
-  here::here(&#39;data/processed&#39;,
-             &#39;tagged_corpus_with_metadata.txt&#39;),
-  sep = &#39;\t&#39;)</code></pre>
+#data.table::fwrite(
+  #tagged_corpus,
+  #here::here(&#39;data/processed&#39;,
+             #&#39;tagged_corpus_with_metadata.txt&#39;),
+  #sep = &#39;\t&#39;)</code></pre>
 <p>At the end of this series of operations, a data frame was generated,
 including all the segmented and lemmatized lexical occurrences of the
 initial document as well as all the relevant metadata for analysis

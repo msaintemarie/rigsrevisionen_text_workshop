@@ -1898,7 +1898,7 @@ for you: firstly to the <strong>data.table</strong> library, but also to
 the corpus used in the context of this course as well as to the analysis
 of metadata corpus in general.</p>
 <p>Let’s begin by first setting the workspace for this session.</p>
-<pre><code>## here() starts at /Users/maximesaintemarie/Dropbox/Academia/Enseignement/rigsrevisionen/text_analysis_workshop</code></pre>
+<pre><code>## here() starts at /Users/maximesaintemarie/Dropbox/Academia/Enseignement/rigsrevisionen/rigsrevisionen_text_workshop</code></pre>
 <div id="data.table" class="section level1">
 <h1><em>Data.Table</em></h1>
 <p>The building blocks of the package <em>data.table</em> are, as the
@@ -1925,7 +1925,7 @@ with <em>.RDS</em> extension. The third function comes from the
   here::here(&quot;data/processed&quot;,
              &quot;tagged_corpus_with_metadata.rds&quot;)))</code></pre>
 <pre><code>##    user  system elapsed 
-##   1.924   0.287   2.249</code></pre>
+##   0.335   0.007   0.362</code></pre>
 <pre class="r"><code>#print(&#39;Processing time for data.table::fread&#39;)
 #system.time(data.table::fread(
   #here::here(&quot;data/processed&quot;,
@@ -1970,12 +1970,13 @@ labeling of the words that it contains.</p>
 ##  $ fremsat_dato  : chr  &quot;26-09-2013&quot; &quot;08-10-2015&quot; &quot;01-10-2020&quot; &quot;01-10-2020&quot; ...
 ##  $ paragraph_id  : int  NA NA 1 1 1 1 1 1 1 1 ...
 ##  $ sentence_id   : int  NA NA 1 1 2 2 2 3 3 3 ...
-##  $ token_id      : int  NA NA 2 4 1 4 7 1 4 5 ...
-##  $ token         : chr  &quot;&quot; &quot;&quot; &quot;nr.&quot; &quot;folketinget&quot; ...
-##  $ lemma         : chr  &quot;&quot; &quot;&quot; &quot;nummer&quot; &quot;folketing&quot; ...
-##  $ upos          : chr  &quot;&quot; &quot;&quot; &quot;noun&quot; &quot;noun&quot; ...
-##  $ lemma_upos    : chr  &quot;&quot; &quot;&quot; &quot;nummer_noun&quot; &quot;folketing_noun&quot; ...
-##  - attr(*, &quot;.internal.selfref&quot;)=&lt;externalptr&gt;</code></pre>
+##  $ token_id      : chr  NA NA &quot;2&quot; &quot;4&quot; ...
+##  $ token         : chr  NA NA &quot;nr.&quot; &quot;folketinget&quot; ...
+##  $ lemma         : chr  NA NA &quot;nummer&quot; &quot;folketing&quot; ...
+##  $ upos          : chr  NA NA &quot;noun&quot; &quot;noun&quot; ...
+##  $ lemma_upos    : chr  NA NA &quot;nummer_noun&quot; &quot;folketing_noun&quot; ...
+##  - attr(*, &quot;.internal.selfref&quot;)=&lt;externalptr&gt; 
+##  - attr(*, &quot;sorted&quot;)= chr &quot;id&quot;</code></pre>
 <p>Finally, the <em>View()</em> function of RStudio allows you to open a
 new window offering a detailed portrait of the corpus and allowing you
 to consult it interactively.</p>
@@ -1990,7 +1991,7 @@ the terms of our corpus: <strong>lemma_upos</strong>.</p>
     &quot;data/processed&quot;,
     &quot;tagged_corpus_with_metadata.rds&quot;))$lemma_upos)</code></pre>
 <pre><code>##    user  system elapsed 
-##   1.693   0.173   1.902</code></pre>
+##   0.330   0.006   0.340</code></pre>
 <pre class="r"><code>#print(&#39;Processing time for data.table::fread&#39;)
 #system.time(data.table::fread(
   #here::here(
@@ -2017,7 +2018,7 @@ and much faster data recording that the basic functions of R.</p>
     &#39;data/processed&#39;,
     &#39;tagged_corpus_with_metadata.rds&#39;)))</code></pre>
 <pre><code>##    user  system elapsed 
-##   2.551   0.019   2.610</code></pre>
+##   0.574   0.008   0.593</code></pre>
 <pre class="r"><code>#print(&#39;Processing time for data.table::fread&#39;)
 #system.time(data.table::fwrite(
   #x = corpus,
