@@ -1,0 +1,362 @@
+---
+title: "Rigsrevisionen Workshop on Computational Text Analysis"
+subtitle: "Part I: Introduction to Preprocessing"
+author: "Maxime Sainte-Marie, Ph.D"
+date: "May 6th 2024"
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+    css: 'css_files/standard.css'
+geometry: margin=1in
+knit: (function(inputFile, encoding) {
+  browseURL(
+    rmarkdown::render(
+      inputFile,
+      encoding = encoding,
+      output_dir = 'documents/manuscripts',
+      output_file = "1_preprocessing.html"))})
+
+---
+
+```{r setup, include=FALSE}
+# Make sure every package is installed
+for(this_package in c("data.table",
+                      'DT',
+                      'gt',
+                      "tidyverse",
+                      "readxl",
+                      'fs',
+                      "rstudioapi",
+                      'knitr',
+                      'stringr',
+                      'rprojroot',
+                      'udpipe')){
+  if(!this_package %in% installed.packages()){
+    install.packages(this_package)
+  }
+}
+
+#activate magrittr to use pipe operator without referencing
+library(magrittr)
+library(data.table)
+
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  root.dir = rprojroot::find_rstudio_root_file())
+
+```
+
+
+Prior to any computer-assisted text analysis, an important part of the researcher's work consists not only of collecting the data, but also and above all of cleaning and pre-processing the documents forming the corpus. The content and quality of the results of any analysis are directly linked to the proper execution of this task, which can take up a large part of the researcher's time and work efforts.
+
+Today's workshop will focus on a corpus of particular relevance to the Folketing, namely a collection of aktstykker granting to various ministries funding for specific projects that are not already specified by the **Finanslov**.
+
+# Introduction
+
+Let us being by importing the corpus used for this workshop.
+
+```{r import_corpus}
+
+# The assignment function (<-) allows to create an object 'corpus' and to include it in our project environment
+
+corpus <- readRDS(here::here('data/raw',
+                             'aktstykke_data_til_workshop.RDS'))
+
+# For your information, it can also be done this way. This way of proceeding however is however impractical from an indentation point of view and might make it harder to read and understand the code.
+
+readRDS(here::here('data/raw',
+                   'aktstykke_data_til_workshop.RDS')) -> corpus
+
+# A word of caution here: in R, avoid using '=' as much as possible, as it automatically creates global variables. 
+
+```
+
+Let's start by inspecting our corpus. A first way to do this with *RMarkdown* is to call the object directly using the *head()* function, which will show only the first rows of the object being called. In additions, *results* is set to "hide" in the code chunk header so that the output of the command doesn't appear in the knitted html file.
+
+```{r call_corpus, results = 'hide'}
+
+head(corpus)
+
+```
+
+Another way to visualize the corpus is to use the basic *str()* function, which allows you to get an overview of its global structure, its attributes, the type of objects involved and the labeling of the words that it contains.
+
+```{r data.table_str, results = 'hide'}
+
+str(corpus)
+
+```
+
+Finally, the *View()* function of RStudio allows you to open a new window in the Editor Pane, window which gives a detailed portrait of the corpus and allowing you to consult it interactively.
+
+```{r view, eval = FALSE}
+
+View(corpus)
+
+```
+
+
+We can see that many different documents from different ministerområde have the same aktstykke number (*nr*). Given this situation, we need to create a new column to uniquely identify each document. To do this, we'll alphanumerically order the corpus by ministerområde aktstykke number and and assign a unique ID number to each document corresponding to its rank.
+
+```{r assign_ids}
+
+corpus$aktstk_nr <- gsub("Aktstk. ", "", corpus$nr)
+corpus$aktstk_nr <- as.integer(corpus$aktstk_nr)
+corpus <- dplyr::arrange(corpus, ministerområde, aktstk_nr)
+corpus$id <- seq.int(nrow(corpus))
+
+```
+
+To get an idea of the state our corpus is in, let's call the corresponding column of the first document in the corpus.
+
+```{r view_first_row, results = 'hide'}
+
+corpus$aktstykke_tekst[1]
+
+```
+
+Obviously, the state of the text is far from that of a PDF. As such, it is important to remember that the amount of time and effort invested in corpus preprocessing is directly proportional to the quality of the original data. In the case of a PDF for example, the less well formatted the PDF, the less likely the converted text will resemble the text as observed on the PDF document.
+
+# Cleaning
+
+There is no ready-made formula or algorithm allowing you to move from a raw corpus to a cleaned corpus in a few well-defined steps. Each corpus being unique, it is impossible to know in advance what can be done to improve its quality. The only viable strategy is to inspect the raw text and proceed one operation at a time, through trial and error and sometimes even backwards, following inevitable handling errors.
+
+At first glance, we can see that a lot of documents are empty or nearly empty. A first step in the cleaning procedure would consist is getting rid of all these cases.
+
+```{r remove_empty}
+# Let us create a new file for the cleaned corpus
+
+cleaned_corpus <-
+  corpus
+# get the number of corpus documents
+print(nrow(corpus))
+
+#Let's get rid of any document having NAs in the Aktstykke_tekst column
+
+cleaned_corpus <-
+  tidyr::drop_na(cleaned_corpus, aktstykke_tekst)
+print(nrow(cleaned_corpus))
+
+# To eliminate short documents, let's remove from the cleaned_corpus all documents having less than 1000 characters
+
+cleaned_corpus$doc_length <-
+  stringr::str_count(cleaned_corpus$aktstykke_tekst)
+cleaned_corpus <-
+  cleaned_corpus[cleaned_corpus$doc_length >= 1000,]
+print(nrow(cleaned_corpus))
+
+
+```
+
+These cleaning steps removed from our corpus all documents that were to small to provide any meaningful information. The following code chunks will allow us to get a better grasp of the size of the remaining documents.
+
+```{r 2.2 plot_document_sizes}
+
+hist(
+    stringr::str_count(
+        cleaned_corpus$aktstykke_tekst), 
+    xlab = 'number of characters',
+    main = 'document size distribution')
+
+
+```
+
+Needless to say, there are some obvious outliers here, as the size of documents constituting the corpus span many orders of magnitude. Given that this is due to only a few documents and given the constraints of this workshop, only documents whose size is lower or equal to 5000 characters were kept for further analysis.
+
+```{r remove_too_big}
+
+cleaned_corpus <-
+  cleaned_corpus[cleaned_corpus$doc_length <= 5000,]
+print(nrow(cleaned_corpus))
+
+```
+
+Although the body text looks much better than it did at the beginning of the process, the cleanup procedure is far from complete. One obvious content feature of the remaining documents is the complex whitespace structure, characterized by various patterns of consecutive carriage returns, tabulations, and spaces. These patterns are often indicative of internal content structure, as they are often used to separate different documents sections. The following command allows us to see if there is any regular structure we can use to further structure our document.
+
+```{r 2.2 check_internal_structure}
+
+print(
+  unique(
+    lengths(
+      strsplit(cleaned_corpus$aktstykke_tekst,
+               '\n{2,}'))))
+
+```
+
+Unfortunately, there doesn't seem to be any consistent pattern we can exploit here. It can still be done, however, but this task goes far beyond the scope of this workshop. It is important to remember here that the texts collected for analysis purposes very often present an unusual structure, often and sometimes even significantly diverging from the classic textual form.
+
+Fortunately, this situation doesn't prevent us from cleaning our corpus further. The next step will consist here in removing all unnecessary whitespaces (line breaks, tabs, spaces). The **stringr::str_squish()** allows us to remove whitespace from start and end of string, and replace all internal whitespace with a single space.
+
+```{r 2.2 headerExtract}
+
+cleaned_corpus$aktstykke_tekst <-
+  stringr::str_squish(cleaned_corpus$aktstykke_tekst)
+
+```
+
+Following these different cleaning operations, the text now is now ready for linguistic preprocessing.
+
+# Linguistic processing
+
+In corpus linguistics, the morpho-syntactic analysis or parts of speech (*part-of-speech (POS) tagging*, *grammatical tagging* or *word-category disambiguation* in English) consists of identifying the grammatical function ( also called grammatical class, category and species) of words. Such an analysis is based on the principle that lexical occurrences with the same grammatical properties have similar syntactic and morphological behavior, in the sense that they have a similar function within sentences and inflect similarly in specific syntactic contexts. For a very long time, these operations were carried out by hand, by experts. Since then, a multitude of linguist-programmers have strived to design algorithms which automate the discretization or segmentation of lexical occurrences and carry out their grammatical classification, associating each of them with a particular grammatical function.
+
+The *UDpipe* package does all this wonderfully, even adding to this procedure a lemmatization operation reducing, on the basis of its grammatical function, each lexical occurrence to its canonical form, i.e. the infinitive mode for conjugal inflections (verbs) and the masculine singular for declinable forms (determinants, nouns, pronouns, adjectives). Let us mention in this respect that a lemmatization which does not proceed from a prior syntactic analysis is most probably unreliable.
+
+```{r 3.2 taggedText}
+
+annotate_corpus <- function(overwrite = FALSE){
+  if(!file.exists(
+    here::here('data/processed',
+               'tagged_corpus.RDS')) |
+    overwrite == TRUE){
+    model_path <- here::here('data/ud_pipe_model')
+    if (!dir.exists(model_path)) {dir.create(model_path)}
+    ud_target <-
+      udpipe::udpipe_download_model(
+        language = "danish-ddt",
+        model_dir = model_path)
+    ud_model <-
+      udpipe::udpipe_load_model(
+        file = ud_target$file_model)
+    tagged_corpus <-
+      udpipe::udpipe_annotate(
+        ud_model,
+        cleaned_corpus$aktstykke_tekst,
+        doc_id = cleaned_corpus$id,
+        parallel.cores = 4)
+    tagged_corpus <-
+      as.data.frame(tagged_corpus)
+    saveRDS(tagged_corpus,
+            here::here('data/processed',
+                       'tagged_corpus.RDS'))
+  } else{
+    tagged_corpus <-
+      readRDS(here::here('data/processed',
+                         'tagged_corpus.RDS'))}
+  return(tagged_corpus)
+}
+
+tagged_corpus <-
+  annotate_corpus()
+
+```
+
+In the field of computational linguistics, very few algorithms can offer a pre-trained, language agnostic morpho-syntactic labeling of this quality in such short time. The morpho-syntactic labeling carried out by UDPipe thus generates a data frame made up of 14 attributes, corresponding to the standard CONLL-U format described [here](https://universaldependencies.org/format.html). Let's have a quick look at each attribute:
+- **doc_id**: the document identifier, as specific in the function call
+- **paragraph_id**, **sentence_id**: the **udpipe_annotate()** function automatically segments and numbers each document in paragraphs and sentences, which cab be very useful when performing certain tasks.
+- **sentence**: The sentence of the corresponding word. This column makes it easier to situate each word within its context or reassemble paragraphs when needed.
+- **token_id**: A unique identifier for the extracted token, based on its rank in the segmented sentence
+- **token**: The linguistic occurrence that has been extracted from the segmented sentence
+- **lemma**: The root form of the linguistic occurrence extracted
+- **upos**: The Universal Part-of-Speech assigned by UDpipe to the extracted linguistic occurrence. Here are its possible values:
+  - Closed class words (finite in number):
+    - **ADP**: Adposition (prepositions or postpositions) (**during**)
+    - **AUX**: Auxiliary (**has, is, will**)
+    - **CCONJ**: Coordinating Conjunction (**and, or, but**)
+    - **DET**: Determiner (**an, the, this, that**)
+    - **NUM**: Numeral (**one, ten**)
+    - **PART**: Particle (Function word associated with another word or phrase to impart meaning) (**'s**)
+    - **PRON**: Pronoun (**I, you, she**)
+    - **SCONJ**: Subordinating Conjunction (**if, while**)
+  - Open class words (infinite in number):
+    - **ADJ**: Adjective (**big, small**)
+    - **ADV**: Adverb (**quickly, well**)
+    - **INTJ**: Interjection (**Ha! Puha!**)
+    - **NOUN**: Noun (**Apple, Mink**)
+    - **PROPN**: Proper Noun (**Copenhague, Copenhagen, Købnhavn**)
+    - **VERB**: You guessed it! (**swim, compute**)
+  - Other
+    - **PUNCT**: Punctuation (**!,.;:?**)
+    - **SYM**: Symbol (Corresponds to a word that you pronounce, unline punctuation) (**$, %**)
+    - **X**: Other
+- **xpos**: Optional language-specific (or treebank-specific) part-of-speech / morphological tag; underscore if not available.
+- **feats**: List of morphological features from the universal feature inventory or from a defined language-specific extension; underscore if not available. To distinguish additional lexical and grammatical properties of words
+- **head_token_id**: Head of the current word, which is either a value of ID or zero (0).
+- **dep_rel**: Universal dependency relation to the HEAD (root iff HEAD = 0) or a defined language-specific subtype of one.
+- **deps**: Enhanced dependency graph in the form of a list of head-deprel pairs.
+- **misc**: Any other annotation.
+
+For the purposes of this workshop, we will limit our annotated corpus to the following columns: *doc_id*, *paragraph_id*, *sentence_id*, *token_id*, *token*, *lemma*, *upos*. In addition, we will only keep tokens tagged by the algorithm with the following parts-of-speech: verbs, nouns, proper nouns, adjectives, adverbs. For convienence purposes, we will also create a new column *lemma_upos* by merging the *lemma* and *upos* columns together; this will allow us to distinguish between word types that are identical but have different linguistic functions, for example **walk_VERB** and **walk_NOUN**. Finally, to faciliate reading and analysis, strings from the columns *token*, *lemma*, *upos*, and *lemma_upos* are to be converted to lower case. In order to do all these operations in a fast and efficient way, we will import and use a very useful and powerful package called *data.table*; more will be said about that package in Part II of this workshop.
+
+
+```{r ling_cleaning}
+
+# to convert the corpus to a data table
+tagged_corpus <-
+  data.table::setDT(tagged_corpus)
+
+# to keep only necessary columns
+tagged_corpus <-
+  tagged_corpus[, .(doc_id, paragraph_id, sentence_id, token_id,
+                    token, lemma, upos)]
+
+# to keep only occurrences from relevant grammatical categories
+tagged_corpus <-
+  tagged_corpus[upos %in% c('VERB','NOUN','ADJ','ADV','PROPN')]
+
+# to convert the remaining occurrence-related columns to lower case
+
+tagged_corpus[, c('token', 'lemma', 'upos') :=
+                .(tolower(token), tolower(lemma), tolower(upos))]
+
+# to create the lemma_upos column by merging the lemma and upos columns
+
+tagged_corpus[, lemma_upos := paste(lemma, upos, sep = '_')]
+
+```
+
+The *lemma*, *upos*, and *lemma_upos* gives us a broad range of possibilities for text analysis. Working on the *lemma* instead of the plain token allows us to analyse the different inflections of a word as a single entity, for example the singular and plural forms of the noun *walk* (**walk, walks**) or the different inflections of the verb *walk* (**walk, walks, walked, walking**). Compared to stemming, which strips predefined affixes from words to reduce the latter to common sequences of characters that do not necessarily correspond to linguistic occurrences, lemmatization has the advantage of filtering out word inflections in a linguistically sound way. To get a quick glimse of the stemming difficulties that are specific to the danish language, you can have a look at [this](http://snowball.tartarus.org/texts/scandinavian.html). Finally, working with lemmas also allows to build compound words very easily.
+
+The *upos* column allows to focus on terms corresponding to specific parts-of-speech for specific natural language processing tasks, for example nouns and verbs in the case topic modelling or adjectives in the case of sentiment analysis or clustering. Without part-of-speech tagging, such tasks would only possible by manually building an anti-lexicon, that is, a list of words to be removed from the corpus.
+
+Finally, the *lemma_upos* column we created will allow us to distinguish lemmas based on their linguistic function; in the case of the lemma *walk*, this column will allow us to distinguish between the noun and the verb, with all their different inflections.
+
+# Metadata
+
+Once the lexical occurrences have been adequately labeled, we can then add relevant metadata by using the doc_id column as key to merge the processed linguistic data with selected columns from the original corpus.
+
+```{r 3.12 metadata}
+
+# To get the metadata from the original corpus
+metadata <-
+  data.table::setDT(
+    corpus[, c('id',
+               'ministerområde',
+               'aktstk_nr',
+               'status',
+               'fremsat_dato')])
+
+tagged_corpus <- tagged_corpus[, doc_id := as.integer(doc_id)]
+
+# To merge our tagged corpus with the corpus metadata
+
+tagged_corpus <- merge(metadata,
+                       tagged_corpus,
+                       by.x = 'id',
+                       by.y = 'doc_id',
+                       all.x = TRUE,
+                       all.y = TRUE)
+  
+# To save our tagged corpus in both RDS and .txt format
+
+saveRDS(
+  tagged_corpus,
+  here::here('data/processed',
+             'tagged_corpus_with_metadata.RDS'))
+
+data.table::fwrite(
+  tagged_corpus,
+  here::here('data/processed',
+             'tagged_corpus_with_metadata.txt'),
+  sep = '\t')
+
+```
+
+At the end of this series of operations, a data frame was generated, including all the segmented and lemmatized lexical occurrences of the initial document as well as all the relevant metadata for analysis purposes. You can view the result one last time using the **View()** function.
+
+# Conclusion
+
+All textual corpora used for computer-assisted analysis purposes were generated based on collection, cleaning and pre-processing operations similar to those presented above. If the morpho-syntactic labeling carried out by UDPipe can easily be applied to other documents, it is quite different for cleaning operations: not only can the same document be cleaned in several different ways, but it is rather rare that such operations can be applied as is to more than one document.
